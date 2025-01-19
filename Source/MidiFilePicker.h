@@ -1,0 +1,59 @@
+
+#pragma once
+
+#include <JuceHeader.h>
+
+#if JUCE_MAC || JUCE_IOS
+//   #include <CoreFoundation/CoreFoundation.h>
+#include <CoreFoundation/CFURL.h>
+#endif
+
+class MidiFilePicker : public Component,
+    public ValueTree::Listener,
+    private FilenameComponentListener
+{
+public:
+    MidiFilePicker(
+        AudioProcessorValueTreeState& valueTreeState
+        // FluidSynthModel& fluidSynthModel
+    );
+    ~MidiFilePicker();
+
+    void resized() override;
+    void paint(Graphics& g) override;
+
+    void setDisplayedFilePath(const String&);
+
+
+    virtual void valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
+        const Identifier& property) override;
+    inline virtual void valueTreeChildAdded(ValueTree& parentTree,
+        ValueTree& childWhichHasBeenAdded) override {
+    };
+    inline virtual void valueTreeChildRemoved(ValueTree& parentTree,
+        ValueTree& childWhichHasBeenRemoved,
+        int indexFromWhichChildWasRemoved) override {
+    };
+    inline virtual void valueTreeChildOrderChanged(ValueTree& parentTreeWhoseChildrenHaveMoved,
+        int oldIndex, int newIndex) override {
+    };
+    inline virtual void valueTreeParentChanged(ValueTree& treeWhoseParentHasChanged) override {};
+    inline virtual void valueTreeRedirected(ValueTree& treeWhichHasBeenChanged) override {};
+private:
+    FilenameComponent fileChooser;
+
+    AudioProcessorValueTreeState& valueTreeState;
+    // FluidSynthModel& fluidSynthModel;
+
+    String currentPath;
+
+#if JUCE_MAC || JUCE_IOS
+    CFURLBookmarkCreationOptions bookmarkCreationOptions;
+#endif
+
+    void filenameComponentChanged(FilenameComponent*) override;
+
+    bool shouldChangeDisplayedFilePath(const String& path);
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiFilePicker)
+};
