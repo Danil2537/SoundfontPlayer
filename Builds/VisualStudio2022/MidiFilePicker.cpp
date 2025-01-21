@@ -1,9 +1,4 @@
-//
-// Created by Alex Birch on 03/10/2017.
-//
-
 #include "MidiFilePicker.h"
-
 // #ifdef __APPLE__
 //   #include <CoreFoundation/CFURL.h>
 // #endif

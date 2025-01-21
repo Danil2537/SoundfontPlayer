@@ -1,7 +1,3 @@
-//
-// Created by Alex Birch on 03/10/2017.
-//
-
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"

@@ -45,9 +45,9 @@ public:
     StringArray soundfontPaths;
     StringArray soundfontNames;
     String currentSoundfontFile;
-    String loadedSoundfontName;
-    String loadedMidiName;
-
+    String loadedSoundfontName = "Current Soundfont File is: ";
+    String loadedMidiName = "Current MIDI File is";
+    StringArray trackTitles;
 
     void timerCallback() override;
     void updateMidiDevices();
@@ -60,6 +60,8 @@ public:
     void run() override;
 
     void playFile();
+    void playAll();
+    bool playAllTracks = false;
     bool channelHasMessages(int trackIndex, int channel);
     void setTracks();
     //void playFile_IgnoreSustainPedal();
@@ -75,8 +77,8 @@ public:
     bool canPlay = false;
 
     // Add members for bank management
-    int currentBank = 0;
-    int currentProgram = 0;
+    //int currentBank = 0;
+    //int currentProgram = 0;
     /** Returns the number of tracks in the MIDI file. */
     int getNumTracks();
 
@@ -93,11 +95,11 @@ public:
     bool trackHasChanged = false;
     std::atomic<int> currentTrack;              // Current MIDI file track that is played
     //std::atomic<int> numTracks;                 // Current MIDI file number of tracks
-    std::atomic<int> currentChannel;
+    //std::atomic<int> currentChannel;
     void sendAllNotesOff(MidiBuffer& midiMessages);
     bool isPlayingSomething;
 
-    void updateProgressBar(double progress);
+    //void updateProgressBar(double progress);
 
     juce::AudioProcessorValueTreeState::ParameterLayout createParams();
     double currentPositionInSeconds{ 0.0 };

@@ -14,7 +14,13 @@ SoundfontAudioSource::SoundfontAudioSource(AudioProcessorValueTreeState& apvts, 
     
     fluid_synth_set_polyphony(synth, numberOfVoices);
 
-    setGain(1.0f);
+    enableReverb(true);
+    setReverbParameters(0.8f, 0.9f, 0.5f, 0.5f);
+
+    //fluid_synth_set_chorus_on(synth, 1);
+    //fluid_synth_set_chorus(synth, 45, 10.0, 0.5, 20.0, 1);
+    //
+    setGain(2.0f);
 }
 
 SoundfontAudioSource::~SoundfontAudioSource()
@@ -41,19 +47,19 @@ void SoundfontAudioSource::getNextAudioBlock(const AudioSourceChannelInfo& buffe
     // Remove any sounds coming in
 
     bufferToFill.clearActiveBufferRegion();
-
+    
     //std::unique_ptr<fluid_mod_t, decltype(&delete_fluid_mod)> mod{ new_fluid_mod(), delete_fluid_mod };
 
-    adsr.applyEnvelopeToBuffer(*bufferToFill.buffer, startSample, bufferToFill.buffer->getNumSamples());
+    //adsr.applyEnvelopeToBuffer(*bufferToFill.buffer, startSample, bufferToFill.buffer->getNumSamples());
     //startSample += bufferToFill.buffer->getNumSamples(); // Update startSample for the next block
     // Prevent loading/unloading soundfonts & stuff while writing floats.
     // That is how you get race conditions and crashes.
     const ScopedLock l (lock);
-
+   
     fluid_synth_write_float(synth,
-                            bufferToFill.buffer->getNumSamples(),
-                            bufferToFill.buffer->getWritePointer(0), 0, 1,
-                            bufferToFill.buffer->getWritePointer(1), 0, 1);
+        bufferToFill.buffer->getNumSamples(),
+        bufferToFill.buffer->getWritePointer(0), 0, 1,
+        bufferToFill.buffer->getWritePointer(1), 0, 1);
 }
 
 bool SoundfontAudioSource::loadSoundfont(const juce::String path)
@@ -63,7 +69,7 @@ bool SoundfontAudioSource::loadSoundfont(const juce::String path)
     //    return false;
     //}
     loadedSoundfont = path;
-    
+
     // Lock while switching soundfonts
     const ScopedLock l (lock);
     
@@ -86,7 +92,8 @@ bool SoundfontAudioSource::loadSoundfont(const juce::String path)
         iterate_presets();
     }
     refreshBanks();
-    //fluid_synth_get_bank_offset(synth, sfontID);
+    //fluid_synth_get_bank_offset(synth, sfontID
+
     return sfontID != -1;
 }
 
@@ -130,6 +137,7 @@ void SoundfontAudioSource::noteOn (int note, float velocity, int channel)
     else if (velocity < 1.0f && velocity>0.0f)
     {
         fluid_synth_noteon(synth, channel, note, velocity * 100.0f);
+        
         //keyState->noteOn(channel, note, velocity);
     }
     else
@@ -228,8 +236,9 @@ void SoundfontAudioSource::iterate_presets()
 void SoundfontAudioSource::loadPreset(int bankNum, int presetNum)
 {
     const ScopedLock l(lock);
-    fluid_synth_program_change(synth, 1, presetNum); // Set the preset (channel 0 for simplicity)
-    fluid_synth_bank_select(synth, 1, bankNum);      // Select the bank
+
+    fluid_synth_program_change(synth, currentChannel.load(), presetNum); 
+    fluid_synth_bank_select(synth, currentBank, bankNum);      // Select the bank
 }
 
 void SoundfontAudioSource::updateAdsrParams(float a, float d, float s, float r)
@@ -324,4 +333,14 @@ void SoundfontAudioSource::refreshBanks() {
     //    //    unique_ptr<XmlElement> xml{valueTreeState.state.createXml()};
     //    //    Logger::outputDebugString(xml->createDocument("",false,false));
     //#endif
+}
+
+void SoundfontAudioSource::enableReverb(bool isOn)
+{
+    fluid_synth_set_reverb_on(synth, isOn ? 1 : 0);
+}
+
+void SoundfontAudioSource::setReverbParameters(float size, float damp, float width, float level)
+{
+    fluid_synth_set_reverb(synth, size, damp, width, level);
 }

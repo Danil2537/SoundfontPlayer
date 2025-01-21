@@ -2,12 +2,6 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "Fluidlite/include/fluidlite.h"
-//==========================================================================
-//==========================================================================
-/** This uses the Fluidlite library to load soundfont files and play them.
-    By default it uses MIDI channel 1, though you can optionally specify a channel.
-    To inspect or create soundfont files, I recommend the "Polyphone" app.
- */
 
 struct PresetInfo
 {
@@ -92,6 +86,11 @@ public:
     void parameterChanged(const String& parameterID, float newValue) override;
     void valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property) override;
     void refreshBanks();
+    void enableReverb(bool isOn);
+    void setReverbParameters(float size, float damp, float width, float level);
+    int currentBank = 0;
+    int currentProgram = 0;
+    std::atomic<int> currentChannel;
 private:
     const StringArray programChangeParams{ "bank", "preset" };
     AudioProcessorValueTreeState& valueTreeState;
@@ -104,4 +103,5 @@ private:
     int sfontID;
     juce::String loadedSoundfont;
     std::vector<PresetInfo> PresetInfos;
+
 };

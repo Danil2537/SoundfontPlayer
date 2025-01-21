@@ -4,7 +4,7 @@
 #include "PluginProcessor.h"
 #include "FilePicker.h"
 #include "MidiFilePicker.h"
-#include"TablesComponent.h"
+#include "TablesComponent.h"
 
 class SoundfontPlayerAudioProcessorEditor : public AudioProcessorEditor,
     public ComboBox::Listener,
@@ -24,12 +24,14 @@ public:
     void handleNoteOff(MidiKeyboardState* source, int midiChannel, int midiNoteNumber, float velocity) override;
     void comboBoxChanged(ComboBox* comboBoxThatWasChanged) override;
     void updatePresetComboBox(int bankNum);
+    void updateSynthChannelComboBox(int channelNum);
     void populateBankComboBox();
     void updateUIAfterSoundfontLoad();
     void updateTrackComboBox();
     void updateChannelComboBox();
-    ProgressBar progressBar;
-    void updateProgressBar(double progress);
+    void populateSynthChannelComboBox();
+    //ProgressBar progressBar;
+    //void updateProgressBar(double progress);
 
     void timerCallback() override;
 
@@ -38,41 +40,43 @@ public:
     bool keyPressed(const KeyPress& key) override;
     bool keyStateChanged(bool isKeyDown) override;
     TablesComponent tablesComponent;
+
 private:
     SoundfontPlayerAudioProcessor& audioProcessor;
-    //MidiKeyboardState keyState;
-    //ScopedPointer<MidiKeyboardComponent> keyboardComponent;
-    ScopedPointer<ComboBox> soundfontSelector;
 
-    // New UI elements
+    ScopedPointer<ComboBox> soundfontSelector;
     TextButton loadSoundfontButton;
     TextButton loadMidiFileButton;
     TextButton playButton;
     TextButton stopButton;
+    TextButton setSynthChannelButton;
+
     Label soundfontTitleLabel;
     Label midiFileTitleLabel;
-    juce:: ComboBox comboTrack;
+
+    juce::Label loadSoundfontLabel;
+    juce::Label loadMidiFileLabel;
+    juce::Label playButtonLabel;
+    juce::Label stopButtonLabel;
+    juce::Label synthChannelLabel;
+    juce::Label comboTrackLabel;
+    juce::Label comboChannelLabel;
+    juce::Label checkboxLabel;
+
+    juce::ComboBox comboTrack;
     juce::ComboBox comboChannel;
     juce::ComboBox bankComboBox;
     juce::ComboBox presetComboBox;
+    juce::ComboBox synthChannelComboBox;
+
     FilePicker filePicker;
     MidiFilePicker midiFilePicker;
-    
+    juce::ToggleButton checkbox;
+
+    void handleCheckboxClick();
     void valueChanged(Value&) override;
 
     Value lastUIWidth, lastUIHeight;
-    juce::Slider attackSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackSliderAttachment;
-    juce::Slider decaySlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decaySliderAttachment;
-    juce::Slider sustainSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainSliderAttachment;
-    juce::Slider releaseSlider;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseSliderAttachment;
 
-
-    juce::Slider trackbarSlider; // Trackbar slider for playback
-    juce::Label currentTimeLabel; // Label to display current time
-    juce::Label totalTimeLabel;   // Label to display total time
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SoundfontPlayerAudioProcessorEditor)
 };

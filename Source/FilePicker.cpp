@@ -1,7 +1,3 @@
-//
-// Created by Alex Birch on 03/10/2017.
-//
-
 #include "FilePicker.h"
 #include "MyColours.h"
 #include "Util.h"

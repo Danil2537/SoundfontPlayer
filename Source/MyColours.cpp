@@ -1,7 +1,3 @@
-//
-// Created by Alex Birch on 03/10/2017.
-//
-
 #include "MyColours.h"
 
 Colour MyColours::getUIColourIfAvailable (LookAndFeel_V4::ColourScheme::UIColour uiColour, Colour fallback = Colour (0xff4d4d4d)) {

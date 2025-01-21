@@ -144,6 +144,7 @@ void SoundfontPlayerAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
 
         if (message.isNoteOn())
         {
+            //soundfontPlayer.currentChannel = message.getChannel();
             soundfontPlayer.noteOn(message.getNoteNumber(), message.getFloatVelocity(), message.getChannel());
             keyState.noteOn(message.getChannel(), message.getNoteNumber(), message.getFloatVelocity());
         }
@@ -221,8 +222,13 @@ bool SoundfontPlayerAudioProcessor::hasEditor() const
 
 void SoundfontPlayerAudioProcessor::loadSoundfontFile()
 {
+   
+
     ValueTree tree{ apvts.state.getChildWithName("soundFont") };
     currentSoundfontFile = tree.getProperty("path", "");
+    File sf(currentSoundfontFile);
+    this->loadedSoundfontName = "The current soundfont file is:" + sf.getFileNameWithoutExtension();
+
     soundfontPlayer.loadSoundfont(currentSoundfontFile);
 }
 
@@ -231,7 +237,7 @@ void SoundfontPlayerAudioProcessor::uploadMidiFile()
     ValueTree tree{ apvts.state.getChildWithName("midiFile") };
     File midiFile(tree.getProperty("path", ""));
     loadMidiFile(midiFile.getFullPathName());
-    loadedMidiName = midiFile.getFileNameWithoutExtension();
+    loadedMidiName = "Current Midi File is: "+ midiFile.getFileNameWithoutExtension();
 }
 
 juce::AudioProcessorEditor* SoundfontPlayerAudioProcessor::createEditor()
@@ -255,12 +261,13 @@ bool SoundfontPlayerAudioProcessor::loadMidiFile(const String& path)
         theMidiFile.convertTimestampTicksToSeconds();
         setTracks();
         DBG("Number of tracks: " + std::to_string(theMidiFile.getNumTracks()));
+        trackTitles.clear();
         for (int i = 0; i < theMidiFile.getNumTracks(); ++i)
         {
             DBG("Track " + std::to_string(i) + " has " + std::to_string(theMidiFile.getTrack(i)->getNumEvents()) + " events.");
         }
         numTracks = theMidiFile.getNumTracks();
-        currentChannel.store(1);
+        soundfontPlayer.currentChannel.store(1);
         currentTrack.store(0);
         trackHasChanged = false;
 
@@ -269,6 +276,11 @@ bool SoundfontPlayerAudioProcessor::loadMidiFile(const String& path)
             for (int j = 0; j < theMidiFile.getTrack(i)->getNumEvents(); ++j)
             {
                 auto message = theMidiFile.getTrack(i)->getEventPointer(j)->message;
+                if (message.isMetaEvent() && message.getMetaEventType() == 0x03) // Track Name meta-event
+                {
+                    trackTitles.add(message.getTextFromTextMetaEvent()); // Extract track name
+                    break;
+                }
                 if (message.isTempoMetaEvent())
                 {
                     originalMidiTempo = message.getTempoSecondsPerQuarterNote() > 0
@@ -305,7 +317,11 @@ void SoundfontPlayerAudioProcessor::play()
 
 void SoundfontPlayerAudioProcessor::run()
 {
-    playFile();
+    if (playAllTracks)
+    {
+        playAll();
+    }
+    else { playFile(); }
 }
 
 void SoundfontPlayerAudioProcessor::playFile()
@@ -319,14 +335,14 @@ void SoundfontPlayerAudioProcessor::playFile()
         bool sustainOn = false;
         double lastTempo = originalMidiTempo;
         double currentTimeInSeconds = 0.0;
-        if (channelHasMessages(localCurrentTrack, currentChannel.load()))
+        if (channelHasMessages(localCurrentTrack, soundfontPlayer.currentChannel.load()))
         {
             while (i < numTrackEvents && !threadShouldExit())
             {
                 MidiMessage* currMsg = &tracks[localCurrentTrack].getEventPointer(i)->message;
                 if (!currMsg->isEndOfTrackMetaEvent())
                 {
-                    if (currMsg->getChannel() == currentChannel.load())
+                    if (currMsg->getChannel() == soundfontPlayer.currentChannel.load())
                     {
                         MidiMessage* nextMsg = &tracks[localCurrentTrack].getEventPointer(i + 1)->message;
 
@@ -338,13 +354,13 @@ void SoundfontPlayerAudioProcessor::playFile()
 
                         if (currMsg->isNoteOn())
                         {
-                            soundfontPlayer.noteOn(currMsg->getNoteNumber() + 12, currMsg->getFloatVelocity(), currentChannel.load());
-                            keyState.noteOn(currentChannel.load(), currMsg->getNoteNumber() + 12, currMsg->getFloatVelocity());
+                            soundfontPlayer.noteOn(currMsg->getNoteNumber(), currMsg->getFloatVelocity(), soundfontPlayer.currentChannel.load());
+                            keyState.noteOn(soundfontPlayer.currentChannel.load(), currMsg->getNoteNumber(), currMsg->getFloatVelocity());
                         }
                         else if (currMsg->isNoteOff())
                         {
-                            soundfontPlayer.noteOff(currMsg->getNoteNumber() + 12, currentChannel.load());
-                            keyState.noteOff(currentChannel.load(), currMsg->getNoteNumber() + 12, currMsg->getFloatVelocity());
+                            soundfontPlayer.noteOff(currMsg->getNoteNumber(), soundfontPlayer.currentChannel.load());
+                            keyState.noteOff(soundfontPlayer.currentChannel.load(), currMsg->getNoteNumber(), currMsg->getFloatVelocity());
                         }
                         else if (currMsg->isController())
                         {
@@ -367,16 +383,89 @@ void SoundfontPlayerAudioProcessor::playFile()
                 i++;
 
                 double progress = currentPositionInSeconds / totalLengthInSeconds;
-                updateProgressBar(progress);
+                //updateProgressBar(progress);
             }
         }
         else
         {
-            DBG("No messages in selected channel " + std::to_string(currentChannel.load()) + " of selected track" + std::to_string(currentTrack.load()));
+            DBG("No messages in selected channel " + std::to_string(soundfontPlayer.currentChannel.load()) + " of selected track" + std::to_string(currentTrack.load()));
         }
         currentPositionInSeconds = 0.0;
         DBG("Closing Play() thread");
     }
+}
+
+void SoundfontPlayerAudioProcessor::playAll()
+{
+    if (numTracks > 0)
+    {
+        std::vector<int> eventIndices(numTracks, 0); // Track progress through each track
+        std::vector<double> trackTimeStamps(numTracks, 0.0);
+        double lastTempo = originalMidiTempo;
+        double globalCurrentTime = 0.0;
+
+        while (!threadShouldExit())
+        {
+            double nextEventTime = std::numeric_limits<double>::max();
+            int trackToProcess = -1;
+
+            // Find the next event to process across all tracks
+            for (int trackIndex = 0; trackIndex < numTracks; ++trackIndex)
+            {
+                if (eventIndices[trackIndex] < tracks[trackIndex].getNumEvents())
+                {
+                    double eventTime = tracks[trackIndex].getEventPointer(eventIndices[trackIndex])->message.getTimeStamp();
+                    if (eventTime < nextEventTime)
+                    {
+                        nextEventTime = eventTime;
+                        trackToProcess = trackIndex;
+                    }
+                }
+            }
+
+            if (trackToProcess == -1)
+                break; // All events processed
+
+            double waitTimeSecs = (nextEventTime - globalCurrentTime) * 1000.0 / tempoScale;
+            if (waitTimeSecs > 0)
+                wait((int)waitTimeSecs);
+
+            globalCurrentTime = nextEventTime;
+
+            // Process the next event on the selected track
+            MidiMessage* currMsg = &tracks[trackToProcess].getEventPointer(eventIndices[trackToProcess])->message;
+            if (currMsg->isNoteOn())
+            {
+                soundfontPlayer.noteOn(currMsg->getNoteNumber(), currMsg->getFloatVelocity(), currMsg->getChannel());
+                keyState.noteOn(currMsg->getChannel(), currMsg->getNoteNumber(), currMsg->getFloatVelocity());
+            }
+            else if (currMsg->isNoteOff())
+            {
+                soundfontPlayer.noteOff(currMsg->getNoteNumber(), currMsg->getChannel());
+                keyState.noteOff(currMsg->getChannel(), currMsg->getNoteNumber(), currMsg->getFloatVelocity());
+            }
+            else if (currMsg->isController() && currMsg->getControllerNumber() == 64) // Sustain pedal
+            {
+                // Handle sustain pedal if needed
+            }
+            else if (currMsg->isTempoMetaEvent())
+            {
+                lastTempo = 60.0 / currMsg->getTempoSecondsPerQuarterNote();
+            }
+
+            ++eventIndices[trackToProcess];
+
+            // Update progress bar
+            double progress = globalCurrentTime / totalLengthInSeconds;
+            //updateProgressBar(progress);
+        }
+    }
+    else
+    {
+        DBG("No tracks to play.");
+    }
+
+    DBG("Finished playing all tracks.");
 }
 
 bool SoundfontPlayerAudioProcessor::channelHasMessages(int trackIndex, int channel)
@@ -447,12 +536,12 @@ int SoundfontPlayerAudioProcessor::getCurrentTrack()
 
 void SoundfontPlayerAudioProcessor::setCurrentChannel(int value)
 {
-    this->currentChannel.store(value);
+    soundfontPlayer.currentChannel.store(value);
 }
 
 int SoundfontPlayerAudioProcessor::getCurrentChannel()
 {
-    return this->currentChannel.load();
+    return soundfontPlayer.currentChannel.load();
 }
 
 void SoundfontPlayerAudioProcessor::sendAllNotesOff(MidiBuffer& midiMessages)
@@ -484,15 +573,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout SoundfontPlayerAudioProcesso
     return { params.begin(), params.end() };
 }
 
-void SoundfontPlayerAudioProcessor::updateProgressBar(double progress)
-{
-    MessageManager::callAsync([this, progress]() {
-        if (auto* editor = dynamic_cast<SoundfontPlayerAudioProcessorEditor*>(getActiveEditor()))
-        {
-            editor->updateProgressBar(progress);
-        }
-        });
-}
+//void SoundfontPlayerAudioProcessor::updateProgressBar(double progress)
+//{
+//    MessageManager::callAsync([this, progress]() {
+//        if (auto* editor = dynamic_cast<SoundfontPlayerAudioProcessorEditor*>(getActiveEditor()))
+//        {
+//            editor->updateProgressBar(progress);
+//        }
+//        });
+//}
 
 double SoundfontPlayerAudioProcessor::calculateTotalLengthInSeconds()
 {
@@ -518,7 +607,7 @@ void SoundfontPlayerAudioProcessor::parameterChanged(const String& parameterID, 
 {
     if (parameterID == "bank") {
         int bank = static_cast<int>(newValue);
-        currentBank = bank;
+        soundfontPlayer.currentBank = bank;
         // Update UI components
         if (auto* editor = dynamic_cast<SoundfontPlayerAudioProcessorEditor*>(getActiveEditor())) {
             editor->tablesComponent.banks.updatePillToggleStates();
@@ -526,8 +615,8 @@ void SoundfontPlayerAudioProcessor::parameterChanged(const String& parameterID, 
     }
     else if (parameterID == "preset") {
         int preset = static_cast<int>(newValue);
-        currentProgram = preset;
-        soundfontPlayer.loadPreset(bankParam, currentProgram);
+        soundfontPlayer.currentProgram = preset;
+        soundfontPlayer.loadPreset(bankParam, soundfontPlayer.currentProgram);
         // Update UI components
         if (auto* editor = dynamic_cast<SoundfontPlayerAudioProcessorEditor*>(getActiveEditor())) {
             editor->tablesComponent.presetTable.selectCurrentPreset();

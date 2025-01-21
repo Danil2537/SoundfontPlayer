@@ -1,7 +1,3 @@
-//
-// Created by Alex Birch on 17/09/2017.
-//
-
 #include "TablesComponent.h"
 
 using namespace std;
