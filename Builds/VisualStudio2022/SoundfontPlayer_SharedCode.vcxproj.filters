@@ -7511,6 +7511,9 @@
     <ClInclude Include="..\..\Source\Pills.h">
       <Filter>SoundfontPlayer\Source</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\GuiConstants.h">
+      <Filter>SoundfontPlayer\Source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\..\..\..\include\JUCE\modules\juce_audio_devices\native\oboe\src\common\README.md">

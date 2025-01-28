@@ -92,8 +92,7 @@ void FilePicker::filenameComponentChanged (FilenameComponent*) {
 //    value = fileChooser.getCurrentFile().getFullPathName();
 }
 
-void FilePicker::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged,
-                                               const Identifier& property) {
+void FilePicker::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property) {
     if (treeWhosePropertyHasChanged.getType() == StringRef("soundFont")) {
     // if (&treeWhosePropertyHasChanged == &valueTree) {
         if (property == StringRef("path")) {

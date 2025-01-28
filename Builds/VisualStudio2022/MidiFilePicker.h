@@ -7,9 +7,9 @@
 #include <CoreFoundation/CFURL.h>
 #endif
 
-class MidiFilePicker : public Component,
-    public ValueTree::Listener,
-    private FilenameComponentListener
+class MidiFilePicker : public juce::Component,
+    public juce::ValueTree::Listener,
+    private juce::FilenameComponentListener
 {
 public:
     MidiFilePicker(

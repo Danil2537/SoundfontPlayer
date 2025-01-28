@@ -43,14 +43,7 @@ public:
             int height,
             bool rowIsSelected
     ) override;
-    void paintCell (
-            Graphics& g,
-            int rowNumber,
-            int columnId,
-            int width,
-            int height,
-            bool rowIsSelected
-    ) override;
+    void paintCell (Graphics& g,int rowNumber, int columnId, int width, int height, bool rowIsSelected) override;
 
     void sortOrderChanged (int newSortColumnId, bool isForwards) override;
 

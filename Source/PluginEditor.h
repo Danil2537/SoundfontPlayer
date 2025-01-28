@@ -6,10 +6,10 @@
 #include "MidiFilePicker.h"
 #include "TablesComponent.h"
 
-class SoundfontPlayerAudioProcessorEditor : public AudioProcessorEditor,
-    public ComboBox::Listener,
-    public MidiKeyboardStateListener,
-    private Value::Listener,
+class SoundfontPlayerAudioProcessorEditor : public juce::AudioProcessorEditor,
+    public juce::ComboBox::Listener,
+    public juce::MidiKeyboardStateListener,
+    private juce::Value::Listener,
     public juce::Timer,
     public juce::Slider::Listener
 {
@@ -50,6 +50,7 @@ private:
     TextButton playButton;
     TextButton stopButton;
     TextButton setSynthChannelButton;
+    TextButton renderButton;
 
     Label soundfontTitleLabel;
     Label midiFileTitleLabel;

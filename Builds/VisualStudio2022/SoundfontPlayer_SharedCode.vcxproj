@@ -2862,6 +2862,7 @@
     <ClInclude Include="..\..\Source\Fluidlite\src\fluid_sys.h" />
     <ClInclude Include="..\..\Source\Fluidlite\src\fluid_tuning.h" />
     <ClInclude Include="..\..\Source\Fluidlite\src\fluid_voice.h" />
+    <ClInclude Include="..\..\Source\GuiConstants.h" />
     <ClInclude Include="..\..\Source\MidiConstants.h" />
     <ClInclude Include="..\..\Source\MyColours.h" />
     <ClInclude Include="..\..\Source\Pills.h" />

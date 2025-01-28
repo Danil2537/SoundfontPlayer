@@ -20,10 +20,12 @@ SoundfontPlayerAudioProcessorEditor::SoundfontPlayerAudioProcessorEditor(Soundfo
     comboTrackLabel("Track Selector", "Midi File Track:"),
     comboChannelLabel("Channel Selector", "Midi File Channel:"),
     checkboxLabel("Checkbox Label", "Play All Tracks and Channels?"),
+    renderButton("Render to WAV"),
     tablesComponent(p.apvts),
     filePicker(p.apvts),
     midiFilePicker(p.apvts)
 {
+
     addAndMakeVisible(soundfontSelector = new ComboBox("SoundfontSelector"));
     soundfontSelector->addListener(this);
     soundfontSelector->addItemList(audioProcessor.soundfontNames, 1);
@@ -50,12 +52,12 @@ SoundfontPlayerAudioProcessorEditor::SoundfontPlayerAudioProcessorEditor(Soundfo
 
     addAndMakeVisible(playButtonLabel);
 
-   
+
     addAndMakeVisible(stopButtonLabel);
 
     addAndMakeVisible(synthChannelLabel);
 
-    
+
     addAndMakeVisible(comboTrackLabel);
 
     addAndMakeVisible(comboChannelLabel);
@@ -67,30 +69,46 @@ SoundfontPlayerAudioProcessorEditor::SoundfontPlayerAudioProcessorEditor(Soundfo
     addAndMakeVisible(midiFileTitleLabel);
     midiFileTitleLabel.setText("Current MIDI File is: ", juce::NotificationType::sendNotification);
     //updateChannelComboBox();
-    loadSoundfontButton.onClick = [&]() 
-    { /* Handle Load Soundfont */ 
+    loadSoundfontButton.onClick = [&]()
+        { /* Handle Load Soundfont */
             audioProcessor.loadSoundfontFile();
             updateUIAfterSoundfontLoad();
-            soundfontTitleLabel.setText(audioProcessor.loadedSoundfontName,juce::NotificationType::sendNotification);
-    };
+            soundfontTitleLabel.setText(audioProcessor.loadedSoundfontName, juce::NotificationType::sendNotification);
+        };
     loadMidiFileButton.onClick = [&]()
-    { /* Handle Load MIDI File */ 
+        { /* Handle Load MIDI File */
             audioProcessor.uploadMidiFile();
             midiFileTitleLabel.setText(audioProcessor.loadedMidiName, juce::NotificationType::sendNotification);
             updateTrackComboBox();
-            
-    };
-    playButton.onClick = [&]() 
-    { /* Handle Play */ 
+
+        };
+    playButton.onClick = [&]()
+        { /* Handle Play */
             DBG("PLAYING");
             audioProcessor.play();
-    };
+        };
     stopButton.onClick = [&]()
-    { /* Handle Stop */
+        { /* Handle Stop */
             DBG("STOPPING");
             audioProcessor.stop();
-    };
+        };
+    addAndMakeVisible(renderButton);
+    renderButton.onClick = [&]()
+        {
+            String midiPath = audioProcessor.apvts.state.getChildWithName("midiFile").getProperty("path", "");
+            String wavPath = "C:\\Documents\\result.wav";
 
+            if (midiPath.isEmpty())
+            {
+                juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon,
+                    "Error", "MIDI file path is empty.");
+                return;
+            }
+
+            audioProcessor.soundfontPlayer.renderMidiToWav(midiPath, wavPath, 48000, 512);
+            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
+                "Success", "MIDI rendered to WAV successfully.");
+        };
 
     tablesComponent.setWantsKeyboardFocus(false);
     addAndMakeVisible(tablesComponent);
@@ -126,61 +144,25 @@ SoundfontPlayerAudioProcessorEditor::SoundfontPlayerAudioProcessorEditor(Soundfo
     checkbox.onClick = [this]() { handleCheckboxClick(); };
     addAndMakeVisible(checkbox);
 
-
-
-
-    //attackSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    //attackSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 100, 50);
-    //addAndMakeVisible(attackSlider);
-    //attackSliderAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "ATTACK", attackSlider);
-
-    //decaySlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    //decaySlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 100, 50);
-    //addAndMakeVisible(decaySlider);
-    //decaySliderAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "DECAY", decaySlider);
-
-    //sustainSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    //sustainSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 100, 50);
-    //addAndMakeVisible(sustainSlider);
-    //sustainSliderAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "SUSTAIN", sustainSlider);
-
-    //releaseSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
-    //releaseSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, 100, 50);
-    //addAndMakeVisible(releaseSlider);
-    //releaseSliderAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "RELEASE", releaseSlider);
-
-
-    //
-    //addAndMakeVisible(progressBar);
-    //progressBar.setColour(ProgressBar::backgroundColourId, Colours::grey);
-    //progressBar.setColour(ProgressBar::foregroundColourId, Colours::green);
-
     setSize(800, 550);
 
-    //trackbarSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-    //trackbarSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    //trackbarSlider.addListener(this);
-    //addAndMakeVisible(trackbarSlider);
-
-    //currentTimeLabel.setText("0:00", juce::dontSendNotification);
-    //currentTimeLabel.setJustificationType(juce::Justification::centred);
-    //addAndMakeVisible(currentTimeLabel);
-
-    //totalTimeLabel.setText("0:00", juce::dontSendNotification);
-    //totalTimeLabel.setJustificationType(juce::Justification::centred);
-    //addAndMakeVisible(totalTimeLabel);
-
-
-
-
-
-    // Start timer to update playback position
-    startTimerHz(30); // Update 30 times per second
+    auto sfpath = p.apvts.state.getChildWithName("soundFont").getPropertyAsValue("path", nullptr).getValue();
+    if (sfpath.isString()) // Check if the property is a string
+    {
+        juce::String path = sfpath.toString(); // Convert to a juce::String
+        if (!path.isEmpty()) // Check if the string is not empty
+        {
+            audioProcessor.loadSoundfontFile();
+            updateUIAfterSoundfontLoad();
+            soundfontTitleLabel.setText(audioProcessor.loadedSoundfontName, juce::NotificationType::sendNotification);
+        }
+    }
 }
 
 SoundfontPlayerAudioProcessorEditor::~SoundfontPlayerAudioProcessorEditor()
 {
     stopTimer();
+    audioProcessor.keyState.removeListener(this);
 }
 
 void SoundfontPlayerAudioProcessorEditor::paint(Graphics& g)
@@ -206,12 +188,14 @@ void SoundfontPlayerAudioProcessorEditor::resized()
     midiFilePicker.setBounds(margin, y, getWidth() - 2 * margin, filePickerHeight);
     y += filePickerHeight + spacing;
 
-    loadSoundfontButton.setBounds(margin, y, (getWidth() / 4)-20, buttonHeight);
-    loadMidiFileButton.setBounds(margin + (getWidth() / 4), y, (getWidth() / 4)-20, buttonHeight);
-    playButton.setBounds(margin + (getWidth() / 4) * 2, y, (getWidth() / 4)-20, buttonHeight);
-    stopButton.setBounds(margin + (getWidth() / 4)*3, y, (getWidth() / 4)-20, buttonHeight);
+    loadSoundfontButton.setBounds(margin, y, (getWidth() / 4) - 20, buttonHeight);
+    loadMidiFileButton.setBounds(margin + (getWidth() / 4), y, (getWidth() / 4) - 20, buttonHeight);
+    playButton.setBounds(margin + (getWidth() / 4) * 2, y, (getWidth() / 4) - 20, buttonHeight);
+    stopButton.setBounds(margin + (getWidth() / 4) * 3, y, (getWidth() / 4) - 20, buttonHeight);
     y += buttonHeight + spacing;
 
+    //renderButton.setBounds(margin, y, getWidth() / 4, buttonHeight);
+    //y += buttonHeight + spacing;
     // Soundfont and MIDI file titles
     soundfontTitleLabel.setBounds(margin, y, (getWidth() - 3 * margin) / 2, labelHeight);
     y += labelHeight + spacing;
@@ -242,7 +226,7 @@ void SoundfontPlayerAudioProcessorEditor::resized()
     const int tablesHeight = 150;
     const int keyboardHeight = 80;
 
-    tablesComponent.setBounds(margin+(getWidth()/2), 120, (getWidth() /2)-margin, getHeight()-110- keyboardHeight-15);
+    tablesComponent.setBounds(margin + (getWidth() / 2), 120, (getWidth() / 2) - margin, getHeight() - 110 - keyboardHeight - 15);
 
     // MIDI keyboard component
     audioProcessor.keyboardComponent.setBounds(margin, getHeight() - keyboardHeight - margin, getWidth() - 2 * margin, keyboardHeight);
@@ -366,10 +350,20 @@ void SoundfontPlayerAudioProcessorEditor::updateUIAfterSoundfontLoad()
 void SoundfontPlayerAudioProcessorEditor::updateTrackComboBox()
 {
     comboTrack.clear();
-
-    for (auto i = 0; i < audioProcessor.getNumTracks(); i++)
-        comboTrack.addItem(audioProcessor.trackTitles[i],i+1);
-        //comboTrack.addItem("Track number " + String(i + 1), i + 1);
+    if(!audioProcessor.trackTitles.isEmpty())
+    {
+        for (auto i = 0; i < audioProcessor.getNumTracks(); i++)
+        {
+            comboTrack.addItem(audioProcessor.trackTitles[i], i + 1);
+        }
+    }
+    else {
+        for (auto i = 0; i < audioProcessor.getNumTracks(); i++)
+        {
+            comboTrack.addItem("Track number " + String(i + 1), i + 1);
+        }
+    }
+    //comboTrack.addItem("Track number " + String(i + 1), i + 1);
 
     comboTrack.setSelectedId(audioProcessor.getCurrentTrack() + 1, dontSendNotification);
 }
@@ -441,3 +435,4 @@ bool SoundfontPlayerAudioProcessorEditor::keyStateChanged(bool isKeyDown)
 {
     return audioProcessor.keyboardComponent.keyStateChanged(isKeyDown);
 }
+

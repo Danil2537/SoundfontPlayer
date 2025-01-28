@@ -142,14 +142,7 @@ void Pills::cycle(bool right) {
     AudioParameterInt* castParam{dynamic_cast<AudioParameterInt*> (param)};
     int bank{castParam->get()};
 
-    int currentIx{static_cast<const int>(
-        distance(
-            pills.begin(),
-            find_if(
-                pills.begin(),
-                pills.end(),
-                    [bank](unique_ptr<Pill>& pill){
-                        return pill->bank == bank;})))};
+    int currentIx{static_cast<const int>(distance(pills.begin(),find_if(pills.begin(),pills.end(),[bank](unique_ptr<Pill>& pill){return pill->bank == bank;})))};
     currentIx += right ? 1 : pills.size()-1;
     pills[currentIx % pills.size()]->textButton.triggerClick();
 
